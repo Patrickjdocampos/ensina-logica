@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Session
+
+from app.models.explain_log import ExplanationLog
 from app.schemas.explain import ExplainRequest, ExplainResponse
 
 
@@ -51,3 +54,24 @@ def generate_pedagogical_explanation(data: ExplainRequest) -> ExplainResponse:
         explanation=explanation,
         suggested_next_step=next_step
     )
+
+
+def save_explanation_log(
+    db: Session,
+    request_data: ExplainRequest,
+    response_data: ExplainResponse
+) -> ExplanationLog:
+    log = ExplanationLog(
+        topic=request_data.topic,
+        level=request_data.level,
+        code_example=request_data.code_example,
+        explanation=response_data.explanation,
+        suggested_next_step=response_data.suggested_next_step,
+        source="local_rule_engine"
+    )
+
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+
+    return log
