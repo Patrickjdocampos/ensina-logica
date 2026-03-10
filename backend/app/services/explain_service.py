@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-
 from app.models.explain_log import ExplanationLog
 from app.schemas.explain import ExplainRequest, ExplainResponse
+from sqlalchemy import func
 
 
 def generate_pedagogical_explanation(data: ExplainRequest) -> ExplainResponse:
@@ -75,3 +75,34 @@ def save_explanation_log(
     db.refresh(log)
 
     return log
+
+
+# Adicione este import lá no topo do arquivo, junto com os outros:
+# from sqlalchemy import func
+
+# ... (mantenha as funções generate_pedagogical_explanation e save_explanation_log intactas) ...
+
+def get_logs(db: Session, skip: int = 0, limit: int = 50):
+    """
+    Busca os logs no banco de dados, ordenados do mais recente para o mais antigo.
+    """
+    return db.query(ExplanationLog).order_by(ExplanationLog.created_at.desc()).offset(skip).limit(limit).all()
+
+
+def get_stats(db: Session):
+    """
+    Gera estatísticas básicas: total de explicações e contagem por tópico.
+    Isso é o embrião do nosso futuro dashboard de análise educacional.
+    """
+    total = db.query(ExplanationLog).count()
+
+    # Conta quantas vezes cada tópico foi requisitado
+    topics_count = db.query(
+        ExplanationLog.topic,
+        func.count(ExplanationLog.id)
+    ).group_by(ExplanationLog.topic).all()
+
+    return {
+        "total_explanations": total,
+        "topics_breakdown": [{"topic": topic, "count": count} for topic, count in topics_count]
+    }
