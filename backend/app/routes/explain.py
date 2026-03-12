@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-# Agora importamos também o LogResponse
 from app.schemas.explain import ExplainRequest, ExplainResponse, LogResponse
-# E importamos as novas funções do service
+from app.models.user import User
+from app.core.deps import get_current_user  # Importamos o cadeado
 from app.services.explain_service import (
     generate_pedagogical_explanation,
     save_explanation_log,
@@ -19,8 +19,7 @@ router = APIRouter(prefix="/explain", tags=["Explain"])
 def explain_test():
     return {
         "feature": "explain",
-        "message": "Rota de explicação inicial funcionando.",
-        "next_step": "Integrar geração pedagógica de explicações."
+        "message": "Rota de explicação inicial funcionando."
     }
 
 @router.post("/", response_model=ExplainResponse)
@@ -29,19 +28,28 @@ def explain_topic(data: ExplainRequest, db: Session = Depends(get_db)):
     save_explanation_log(db, data, response)
     return response
 
-# --- NOVAS ROTAS DE LEITURA ---
+# --- ROTAS PROTEGIDAS ---
+# Adicionamos current_user: User = Depends(get_current_user) como parâmetro
+# Isso obriga o FastAPI a rodar a verificação de token antes de executar a função
 
 @router.get("/logs", response_model=List[LogResponse])
-def read_logs(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+def read_logs(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retorna o histórico de explicações geradas pelo sistema.
+    Retorna o histórico de explicações. Rota protegida.
     """
     return get_logs(db, skip=skip, limit=limit)
 
 @router.get("/stats")
-def read_stats(db: Session = Depends(get_db)):
+def read_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retorna estatísticas de uso do sistema (total e temas mais buscados).
-    Isso prepara o terreno para o nosso futuro dashboard.
+    Retorna estatísticas de uso. Rota protegida.
     """
     return get_stats(db)

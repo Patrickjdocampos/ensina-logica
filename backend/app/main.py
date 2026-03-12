@@ -1,10 +1,9 @@
 from fastapi import FastAPI
-
 from app.core.config import APP_NAME, APP_VERSION, APP_DESCRIPTION
 from app.database import Base, engine
 from app.routes.health import router as health_router
 from app.routes.explain import router as explain_router
-
+from app.routes.auth import router as auth_router
 import app.models  # noqa: F401
 
 app = FastAPI(
@@ -30,3 +29,4 @@ def root():
 
 app.include_router(health_router)
 app.include_router(explain_router)
+app.include_router(auth_router)
