@@ -1,4 +1,4 @@
-from explicacoes import (
+from legacy.cli_v1.explicacoes import (
     explicar_if,
     explicar_if_else,
     explicar_for,

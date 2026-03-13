@@ -1,3 +1,22 @@
+# Ambiente Virtual
+.venv/
+env/
+venv/
+ENV/
+
+# Configurações de IDE
 .idea/
+.vscode/
+
+# Arquivos de Sistema e Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+# Segurança e Banco de Dados (O mais importante!)
+.env
+backend/.env
+*.db
+*.sqlite3
