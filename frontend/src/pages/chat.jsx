@@ -2,19 +2,19 @@ import { useState } from 'react';
 import axios from 'axios';
 
 function Chat() {
-  // Parâmetros do Chat controlados pela barra lateral
   const [topic, setTopic] = useState('');
   const [level, setLevel] = useState('iniciante');
 
-  // Estado da Conversa
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Novo estado para controlar a sessão no banco de dados
+  const [sessionId, setSessionId] = useState(null);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Validação de segurança para garantir o contexto da IA
     if (!topic.trim()) {
       alert('Por favor, defina um tópico na barra lateral esquerda antes de iniciar.');
       return;
@@ -26,14 +26,23 @@ function Chat() {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/explain', {
+      // O payload agora envia o session_id. Se for null, o backend criará uma nova sessão.
+      const payload = {
         topic: topic,
         level: level,
         prompt: userMessage.content,
-        messages: messages
-      });
+        session_id: sessionId
+      };
 
-      const textResponse = response.data.explanation || response.data.resposta || JSON.stringify(response.data);
+      const response = await axios.post('http://127.0.0.1:8000/explain', payload);
+
+      const textResponse = response.data.explanation;
+
+      // Captura o ID da sessão gerado pelo backend na primeira interação
+      if (!sessionId && response.data.session_id) {
+        setSessionId(response.data.session_id);
+      }
+
       setMessages((prev) => [...prev, { role: 'assistant', content: textResponse }]);
     } catch (error) {
       console.error(error);
@@ -44,8 +53,10 @@ function Chat() {
   };
 
   const handleNewChat = () => {
+    // Reseta o contexto local e desvincula a sessão atual
     setMessages([]);
     setInput('');
+    setSessionId(null);
   };
 
   return (
@@ -54,7 +65,6 @@ function Chat() {
       {/* Barra Lateral Esquerda */}
       <div style={{ width: '280px', backgroundColor: '#252526', borderRight: '1px solid #3c3c3c', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Controles de Parâmetros */}
         <div style={{ padding: '20px', borderBottom: '1px solid #3c3c3c' }}>
           <button
             onClick={handleNewChat}
@@ -72,7 +82,8 @@ function Chat() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Ex: Condicionais, Listas..."
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box' }}
+              disabled={sessionId !== null} // Bloqueia edição de parâmetros no meio da conversa
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box', opacity: sessionId !== null ? 0.5 : 1 }}
             />
           </div>
 
@@ -81,7 +92,8 @@ function Chat() {
             <select
               value={level}
               onChange={(e) => setLevel(e.target.value)}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box' }}
+              disabled={sessionId !== null} // Bloqueia edição de parâmetros no meio da conversa
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box', opacity: sessionId !== null ? 0.5 : 1 }}
             >
               <option value="iniciante">Iniciante</option>
               <option value="intermediário">Intermediário</option>
@@ -90,11 +102,10 @@ function Chat() {
           </div>
         </div>
 
-        {/* Quadro de Histórico (Reservado para o Passo 2) */}
         <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
           <h2 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#cccccc', textTransform: 'uppercase' }}>Histórico</h2>
           <p style={{ fontSize: '12px', color: '#777', fontStyle: 'italic', lineHeight: '1.5' }}>
-            A lista de sessões anteriores será implementada nesta área após a refatoração do banco de dados.
+            A lista de sessões anteriores será implementada nesta área.
           </p>
         </div>
 
@@ -103,10 +114,9 @@ function Chat() {
       {/* Área Principal do Chat */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
-        {/* Histórico de Mensagens Ativas */}
         <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
           {topic ? (
-             <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Tópico Atual: {topic}</h1>
+             <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Tópico Atual: {topic} {sessionId && <span style={{fontSize: '14px', color: '#777'}}>(Sessão #{sessionId})</span>}</h1>
           ) : (
              <h1 style={{ fontSize: '24px', marginBottom: '20px', color: '#777' }}>Defina um tópico ao lado para começar</h1>
           )}
@@ -115,7 +125,6 @@ function Chat() {
             <p style={{ color: '#aaaaaa' }}>Aguardando o envio da sua mensagem para iniciar a aula.</p>
           )}
 
-          {/* Renderização dinâmica dos balões */}
           {messages.map((msg, index) => (
             <div key={index} style={{ marginBottom: '20px', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
               <div style={{
@@ -139,7 +148,6 @@ function Chat() {
           )}
         </div>
 
-        {/* Área de Entrada de Texto */}
         <div style={{ padding: '20px', backgroundColor: '#1e1e1e', borderTop: '1px solid #3c3c3c' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', gap: '10px' }}>
             <input

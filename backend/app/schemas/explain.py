@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 
 class MessageItem(BaseModel):
     role: str
@@ -8,17 +9,29 @@ class MessageItem(BaseModel):
 class ExplainRequest(BaseModel):
     topic: str
     level: str
-    prompt: Optional[str] = None
+    prompt: str
     messages: Optional[List[MessageItem]] = []
+    session_id: Optional[int] = None  # Se for None, o backend criará um novo Chat
 
 class ExplainResponse(BaseModel):
     explanation: str
+    session_id: int  # O backend sempre devolverá o ID da sessão ativa
 
-class LogResponse(BaseModel):
+# Esquemas para leitura do Histórico no Dashboard e Sidebar
+class ChatSessionResponse(BaseModel):
     id: int
     topic: str
     level: str
-    explanation: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ChatMessageResponse(BaseModel):
+    id: int
+    role: str
+    content: str
+    created_at: datetime
 
     class Config:
         from_attributes = True
