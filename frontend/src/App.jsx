@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Chat from './pages/Chat';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -11,7 +12,16 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* Rota Protegida */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
