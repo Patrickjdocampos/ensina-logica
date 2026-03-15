@@ -1,19 +1,22 @@
-from datetime import datetime
-
-from sqlalchemy import DateTime, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy.sql import func
 from app.database import Base
 
 
 class ExplanationLog(Base):
     __tablename__ = "explanation_logs"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    topic: Mapped[str] = mapped_column(String(100), index=True)
-    level: Mapped[str] = mapped_column(String(50), index=True)
-    code_example: Mapped[str | None] = mapped_column(Text, nullable=True)
-    explanation: Mapped[str] = mapped_column(Text)
-    suggested_next_step: Mapped[str] = mapped_column(Text)
-    source: Mapped[str] = mapped_column(String(50), default="local_rule_engine")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True, nullable=False)
+    level = Column(String, index=True, nullable=False)
+
+    # Estes campos podem ficar nulos se você não for mais usá-los ativamente
+    code_example = Column(Text, nullable=True)
+    programming_language = Column(String, nullable=True)
+    language_version = Column(String, nullable=True)
+
+    explanation = Column(Text, nullable=False)
+    suggested_next_step = Column(Text, nullable=True)
+    source = Column(String, default="google_gemini")
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

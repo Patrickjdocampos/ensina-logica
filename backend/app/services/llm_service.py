@@ -17,14 +17,14 @@ except Exception as e:
     print(f"Aviso: Não foi possível inicializar o cliente Gemini. Erro: {e}")
 
 
-def generate_explanation(topic: str, level: str) -> str:
+def generate_explanation(topic: str, level: str, prompt: str = None, history: list = None) -> str:
     """
-    Envia o tópico e o nível para o Gemini e retorna a explicação gerada.
+    Inicializa uma sessão de chat com a IA injetando instruções de sistema e contexto.
     """
     if not client:
-        return "Desculpe, a conexão com a IA não pôde ser estabelecida no momento."
+        return "Conexão com a IA não pôde ser estabelecida."
 
-    prompt = f"""Você é uma professora de lógica de programação didática e paciente.
+    system_instruction = f"""Você é uma professora de lógica de programação didática.
 Sua tarefa é explicar o conceito de "{topic}" para um aluno de nível "{level}".
 
 Regras:
@@ -33,21 +33,33 @@ Regras:
 - Se o nível for "iniciante", use analogias do dia a dia e evite jargões complexos.
 - Se o nível for "intermediário", foque em como isso é usado em código real.
 - Se o nível for "avançado", explique o funcionamento interno ou performance.
-- Seja direta e estruturada, não ultrapasse 4 parágrafos.
+- Seja direta e estruturada, não ultrapasse 4 parágrafos."""
 
-Explicação:"""
+    # Converte o histórico (frontend) para a estrutura nativa da biblioteca Gemini
+    gemini_history = []
+    if history:
+        for msg in history:
+            role = "model" if msg["role"] == "assistant" else "user"
+            gemini_history.append(
+                types.Content(role=role, parts=[types.Part(text=msg["content"])])
+            )
 
     try:
-        # Chama o Gemini 1.5 Flash (excelente para respostas rápidas e gratuitas)
-        response = client.models.generate_content(
+        # Cria a sessão conversacional com as instruções rígidas e o contexto das trocas anteriores
+        chat = client.chats.create(
             model='gemini-2.5-flash',
-            contents=prompt,
             config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
                 temperature=0.7,
-            )
+            ),
+            history=gemini_history
         )
+
+        # Envia a interação atual ou estabelece uma solicitação primária automática
+        user_message = prompt if prompt else f"Explique o tema {topic}."
+
+        response = chat.send_message(user_message)
         return response.text.strip()
 
     except Exception as e:
-        print(f"Erro ao chamar a IA: {e}")
-        return "Desculpe, meu cérebro de IA está temporariamente indisponível. Tente novamente em alguns instantes."
+        print(f"Erro ao processar instrução do modelo conversacional: {e}")
