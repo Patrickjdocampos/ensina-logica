@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 function Chat() {
@@ -9,8 +9,28 @@ function Chat() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Novo estado para controlar a sessão no banco de dados
   const [sessionId, setSessionId] = useState(null);
+
+  // Novo estado para armazenar a lista de histórico lateral
+  const [historyList, setHistoryList] = useState([]);
+
+  // Carrega o histórico salvo no navegador ao iniciar a página
+  useEffect(() => {
+    const saved = localStorage.getItem('ensina_logica_history');
+    if (saved) {
+      setHistoryList(JSON.parse(saved));
+    }
+  }, []);
+
+  // Função auxiliar para salvar nova sessão no histórico local
+  const saveToHistory = (id, currentTopic, currentLevel) => {
+    setHistoryList((prev) => {
+      if (prev.some(item => item.id === id)) return prev; // Evita duplicatas
+      const newList = [{ id, topic: currentTopic, level: currentLevel }, ...prev];
+      localStorage.setItem('ensina_logica_history', JSON.stringify(newList));
+      return newList;
+    });
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -26,7 +46,6 @@ function Chat() {
     setIsLoading(true);
 
     try {
-      // O payload agora envia o session_id. Se for null, o backend criará uma nova sessão.
       const payload = {
         topic: topic,
         level: level,
@@ -35,12 +54,13 @@ function Chat() {
       };
 
       const response = await axios.post('http://127.0.0.1:8000/explain', payload);
-
       const textResponse = response.data.explanation;
+      const returnedSessionId = response.data.session_id;
 
-      // Captura o ID da sessão gerado pelo backend na primeira interação
-      if (!sessionId && response.data.session_id) {
-        setSessionId(response.data.session_id);
+      // Se for a primeira mensagem, atualiza o ID da sessão e salva no histórico lateral
+      if (!sessionId && returnedSessionId) {
+        setSessionId(returnedSessionId);
+        saveToHistory(returnedSessionId, topic, level);
       }
 
       setMessages((prev) => [...prev, { role: 'assistant', content: textResponse }]);
@@ -53,10 +73,37 @@ function Chat() {
   };
 
   const handleNewChat = () => {
-    // Reseta o contexto local e desvincula a sessão atual
+    // Limpa o histórico da tela e o campo de texto
     setMessages([]);
     setInput('');
+
+    // Desvincula a sessão atual
     setSessionId(null);
+
+    // Reseta os parâmetros na barra lateral
+    setTopic('');
+    setLevel('iniciante');
+  };
+
+  // Nova função: Busca uma conversa passada na API
+  const loadSession = async (id) => {
+    try {
+      setIsLoading(true);
+      const response = await axios.get(`http://127.0.0.1:8000/explain/session/${id}`);
+      const data = response.data;
+
+      // Restaura o estado da tela com os dados vindos do banco
+      setSessionId(data.session.id);
+      setTopic(data.session.topic);
+      setLevel(data.session.level);
+      setMessages(data.messages);
+
+    } catch (error) {
+      console.error(error);
+      alert('Não foi possível carregar o histórico desta sessão.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -82,7 +129,7 @@ function Chat() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Ex: Condicionais, Listas..."
-              disabled={sessionId !== null} // Bloqueia edição de parâmetros no meio da conversa
+              disabled={sessionId !== null}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box', opacity: sessionId !== null ? 0.5 : 1 }}
             />
           </div>
@@ -92,7 +139,7 @@ function Chat() {
             <select
               value={level}
               onChange={(e) => setLevel(e.target.value)}
-              disabled={sessionId !== null} // Bloqueia edição de parâmetros no meio da conversa
+              disabled={sessionId !== null}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box', opacity: sessionId !== null ? 0.5 : 1 }}
             >
               <option value="iniciante">Iniciante</option>
@@ -102,11 +149,39 @@ function Chat() {
           </div>
         </div>
 
+        {/* Quadro de Histórico Dinâmico */}
         <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
           <h2 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#cccccc', textTransform: 'uppercase' }}>Histórico</h2>
-          <p style={{ fontSize: '12px', color: '#777', fontStyle: 'italic', lineHeight: '1.5' }}>
-            A lista de sessões anteriores será implementada nesta área.
-          </p>
+
+          {historyList.length === 0 ? (
+            <p style={{ fontSize: '12px', color: '#777', fontStyle: 'italic', lineHeight: '1.5' }}>
+              Nenhuma sessão recente encontrada neste navegador.
+            </p>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {historyList.map((item) => (
+                <li key={item.id} style={{ marginBottom: '8px' }}>
+                  <button
+                    onClick={() => loadSession(item.id)}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '10px',
+                      backgroundColor: sessionId === item.id ? '#3c3c3c' : 'transparent',
+                      color: '#ddd',
+                      border: '1px solid #3c3c3c',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <strong style={{ display: 'block', color: '#4CAF50', marginBottom: '4px' }}>{item.topic}</strong>
+                    <span style={{ fontSize: '11px', color: '#888', textTransform: 'capitalize' }}>Nível: {item.level}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
       </div>
@@ -143,7 +218,7 @@ function Chat() {
 
           {isLoading && (
             <div style={{ textAlign: 'left', color: '#aaaaaa', fontStyle: 'italic', marginTop: '10px' }}>
-              Processando resposta do modelo...
+              Processando histórico ou resposta...
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -8,7 +8,8 @@ from app.core.deps import get_current_user
 from app.services.explain_service import (
     generate_pedagogical_explanation,
     get_logs,
-    get_stats
+    get_stats,
+    get_session_chat
 )
 
 router = APIRouter(prefix="/explain", tags=["Explain"])
@@ -22,9 +23,17 @@ def explain_test():
 
 @router.post("/", response_model=ExplainResponse)
 def explain_topic(data: ExplainRequest, db: Session = Depends(get_db)):
-    # A persistência agora ocorre de forma integrada na geração da resposta
+    """Rota para enviar novas mensagens e gerar explicações via IA."""
     response = generate_pedagogical_explanation(db, data)
     return response
+
+@router.get("/session/{session_id}")
+def read_session(session_id: int, db: Session = Depends(get_db)):
+    """Nova rota pública para recuperar o histórico de uma sessão específica."""
+    session_data = get_session_chat(db, session_id)
+    if not session_data:
+        raise HTTPException(status_code=404, detail="Sessão não encontrada")
+    return session_data
 
 # --- ROTAS PROTEGIDAS ---
 

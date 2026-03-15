@@ -94,3 +94,24 @@ def get_stats(db: Session):
         "topics_breakdown": [{"topic": t[0], "count": t[1]} for t in topics_count],
         "levels_breakdown": [{"level": l[0], "count": l[1]} for l in levels_count]
     }
+
+def get_session_chat(db: Session, session_id: int):
+    """
+    Recupera os dados de uma sessão específica e seu histórico de mensagens.
+    """
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not session:
+        return None
+
+    messages = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).order_by(ChatMessage.created_at.asc()).all()
+
+    return {
+        "session": {
+            "id": session.id,
+            "topic": session.topic,
+            "level": session.level
+        },
+        "messages": [{"role": m.role, "content": m.content} for m in messages]
+    }
