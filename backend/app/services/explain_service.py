@@ -34,20 +34,24 @@ def generate_pedagogical_explanation(db: Session, data: ExplainRequest) -> Expla
     if history_list:
         history_list.pop()
 
-    # 4. Aciona o LLM
-    resposta = llm_service.generate_explanation(
-        topic=session.topic,
-        level=session.level,
-        prompt=data.prompt,
-        history=history_list
-    )
+        # 4. Aciona o LLM
+        resposta = llm_service.generate_explanation(
+            topic=session.topic,
+            level=session.level,
+            prompt=data.prompt,
+            history=history_list
+        )
 
-    # 5. Registra a resposta da IA
-    ia_msg = ChatMessage(session_id=session.id, role="assistant", content=resposta)
-    db.add(ia_msg)
-    db.commit()
+        # 5. Registra a resposta da IA APENAS se houver conteúdo válido
+        if resposta:
+            ia_msg = ChatMessage(session_id=session.id, role="assistant", content=resposta)
+            db.add(ia_msg)
+            db.commit()
+        else:
+            # Define uma mensagem padrão caso a IA falhe e não grava no banco para não sujar o histórico
+            resposta = "Ocorreu um erro ao gerar a explicação (possível limite de uso da API excedido). Aguarde alguns instantes e tente novamente."
 
-    return ExplainResponse(explanation=resposta, session_id=session.id)
+        return ExplainResponse(explanation=resposta, session_id=session.id)
 
 
 def get_logs(db: Session, skip: int = 0, limit: int = 50):

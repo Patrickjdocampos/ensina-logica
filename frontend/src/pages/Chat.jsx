@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
 function Chat() {
   const [topic, setTopic] = useState('');
@@ -10,22 +11,26 @@ function Chat() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [sessionId, setSessionId] = useState(null);
-
-  // Novo estado para armazenar a lista de histórico lateral
   const [historyList, setHistoryList] = useState([]);
 
-  // Carrega o histórico salvo no navegador ao iniciar a página
   useEffect(() => {
-    const saved = localStorage.getItem('ensina_logica_history');
-    if (saved) {
-      setHistoryList(JSON.parse(saved));
+    try {
+      const saved = localStorage.getItem('ensina_logica_history');
+      if (saved) {
+        const parsedData = JSON.parse(saved);
+        // Validação de segurança extraída das iterações anteriores
+        if (Array.isArray(parsedData)) {
+          setHistoryList(parsedData);
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao ler o histórico local", e);
     }
   }, []);
 
-  // Função auxiliar para salvar nova sessão no histórico local
   const saveToHistory = (id, currentTopic, currentLevel) => {
     setHistoryList((prev) => {
-      if (prev.some(item => item.id === id)) return prev; // Evita duplicatas
+      if (prev.some(item => item.id === id)) return prev;
       const newList = [{ id, topic: currentTopic, level: currentLevel }, ...prev];
       localStorage.setItem('ensina_logica_history', JSON.stringify(newList));
       return newList;
@@ -33,9 +38,9 @@ function Chat() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input || typeof input !== 'string' || input.trim() === '' || isLoading) return;
 
-    if (!topic.trim()) {
+    if (!topic || typeof topic !== 'string' || topic.trim() === '') {
       alert('Por favor, defina um tópico na barra lateral esquerda antes de iniciar.');
       return;
     }
@@ -57,7 +62,6 @@ function Chat() {
       const textResponse = response.data.explanation;
       const returnedSessionId = response.data.session_id;
 
-      // Se for a primeira mensagem, atualiza o ID da sessão e salva no histórico lateral
       if (!sessionId && returnedSessionId) {
         setSessionId(returnedSessionId);
         saveToHistory(returnedSessionId, topic, level);
@@ -66,37 +70,30 @@ function Chat() {
       setMessages((prev) => [...prev, { role: 'assistant', content: textResponse }]);
     } catch (error) {
       console.error(error);
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Erro de conexão: Não foi possível obter resposta do backend.' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Erro de conexão com o servidor.' }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleNewChat = () => {
-    // Limpa o histórico da tela e o campo de texto
     setMessages([]);
     setInput('');
-
-    // Desvincula a sessão atual
     setSessionId(null);
-
-    // Reseta os parâmetros na barra lateral
     setTopic('');
     setLevel('iniciante');
   };
 
-  // Nova função: Busca uma conversa passada na API
   const loadSession = async (id) => {
     try {
       setIsLoading(true);
       const response = await axios.get(`http://127.0.0.1:8000/explain/session/${id}`);
       const data = response.data;
 
-      // Restaura o estado da tela com os dados vindos do banco
-      setSessionId(data.session.id);
-      setTopic(data.session.topic);
-      setLevel(data.session.level);
-      setMessages(data.messages);
+      setSessionId(data.session?.id || null);
+      setTopic(data.session?.topic || '');
+      setLevel(data.session?.level || 'iniciante');
+      setMessages(data.messages || []);
 
     } catch (error) {
       console.error(error);
@@ -105,6 +102,9 @@ function Chat() {
       setIsLoading(false);
     }
   };
+
+  const isTopicValid = typeof topic === 'string' && topic.trim() !== '';
+  const isInputDisabled = isLoading || !isTopicValid;
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', fontFamily: 'sans-serif', backgroundColor: '#1e1e1e', color: '#ffffff' }}>
@@ -126,7 +126,7 @@ function Chat() {
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '5px', color: '#aaa' }}>Tópico de Estudo</label>
             <input
               type="text"
-              value={topic}
+              value={topic || ''}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Ex: Condicionais, Listas..."
               disabled={sessionId !== null}
@@ -137,7 +137,7 @@ function Chat() {
           <div>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '5px', color: '#aaa' }}>Nível de Dificuldade</label>
             <select
-              value={level}
+              value={level || 'iniciante'}
               onChange={(e) => setLevel(e.target.value)}
               disabled={sessionId !== null}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box', opacity: sessionId !== null ? 0.5 : 1 }}
@@ -155,7 +155,7 @@ function Chat() {
 
           {historyList.length === 0 ? (
             <p style={{ fontSize: '12px', color: '#777', fontStyle: 'italic', lineHeight: '1.5' }}>
-              Nenhuma sessão recente encontrada neste navegador.
+              Nenhuma sessão recente encontrada.
             </p>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -189,16 +189,17 @@ function Chat() {
       {/* Área Principal do Chat */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
-        <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
+        {/* AQUI ESTÁ A CORREÇÃO DE ARQUITETURA: key={sessionId || 'empty'} forçando a remontagem segura */}
+        <div key={sessionId || 'empty'} style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
           {topic ? (
              <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Tópico Atual: {topic} {sessionId && <span style={{fontSize: '14px', color: '#777'}}>(Sessão #{sessionId})</span>}</h1>
           ) : (
              <h1 style={{ fontSize: '24px', marginBottom: '20px', color: '#777' }}>Defina um tópico ao lado para começar</h1>
           )}
 
-          {messages.length === 0 && (
+          {messages.length === 0 ? (
             <p style={{ color: '#aaaaaa' }}>Aguardando o envio da sua mensagem para iniciar a aula.</p>
-          )}
+          ) : null}
 
           {messages.map((msg, index) => (
             <div key={index} style={{ marginBottom: '20px', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
@@ -209,41 +210,45 @@ function Chat() {
                 backgroundColor: msg.role === 'user' ? '#4CAF50' : '#333333',
                 maxWidth: '80%',
                 lineHeight: '1.5',
-                whiteSpace: 'pre-wrap'
+                textAlign: 'left'
               }}>
-                {msg.content}
+                {msg.role === 'user' ? (
+                  <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                ) : (
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                )}
               </div>
             </div>
           ))}
 
-          {isLoading && (
+          {isLoading ? (
             <div style={{ textAlign: 'left', color: '#aaaaaa', fontStyle: 'italic', marginTop: '10px' }}>
               Processando histórico ou resposta...
             </div>
-          )}
+          ) : null}
         </div>
 
         <div style={{ padding: '20px', backgroundColor: '#1e1e1e', borderTop: '1px solid #3c3c3c' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', gap: '10px' }}>
             <input
               type="text"
-              value={input}
+              value={input || ''}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Digite sua dúvida ou código..."
-              disabled={isLoading || !topic.trim()}
+              disabled={isInputDisabled}
               style={{ flex: 1, padding: '15px', borderRadius: '8px', border: '1px solid #555', backgroundColor: '#333', color: '#fff' }}
             />
             <button
               onClick={handleSend}
-              disabled={isLoading || !topic.trim()}
+              disabled={isInputDisabled}
               style={{
                 padding: '0 20px',
-                backgroundColor: (isLoading || !topic.trim()) ? '#555' : '#4CAF50',
+                backgroundColor: isInputDisabled ? '#555' : '#4CAF50',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '8px',
-                cursor: (isLoading || !topic.trim()) ? 'not-allowed' : 'pointer'
+                cursor: isInputDisabled ? 'not-allowed' : 'pointer'
               }}
             >
               Enviar

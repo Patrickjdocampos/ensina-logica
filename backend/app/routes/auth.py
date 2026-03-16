@@ -35,3 +35,21 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         data={"sub": user.email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+from app.schemas.user import UserCreate, UserResponse
+from app.services import user_service
+
+
+# (Mantenha as outras importações que já existem no seu arquivo)
+
+@router.post("/register", response_model=UserResponse)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    """Rota para cadastrar um novo usuário no sistema."""
+    # Verifica se o e-mail já existe no banco
+    db_user = user_service.get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="E-mail já cadastrado.")
+
+    # Cria e retorna o novo usuário
+    return user_service.create_user(db=db, user=user)
