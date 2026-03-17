@@ -6,7 +6,19 @@ from app.routes.health import router as health_router
 from app.routes.explain import router as explain_router
 from app.routes.auth import router as auth_router
 import app.models  # noqa: F401
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware # Adicione esta importação
 
+app = FastAPI(title="Ensina Lógica API")
+
+# Adicione este bloco:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Em produção, o ideal seria listar apenas a URL da Vercel
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
