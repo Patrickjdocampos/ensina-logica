@@ -37,7 +37,7 @@ function Login() {
       localStorage.setItem('token', token);
 
       // Redireciona para o Dashboard (posteriormente mudaremos para o Chat)
-      navigate('/dashboard');
+      navigate('/');
 
     } catch (err) {
       console.error(err);

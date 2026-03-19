@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Cria uma instância padronizada do Axios
+// Substitua a URL abaixo pela URL que aparece no topo do seu painel do Render
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000',
+  baseURL: 'https://ensina-logica-api.onrender.com', // Exemplo: cole a sua aqui
 });
 
 // Interceptador: injeta o token antes de cada requisição sair

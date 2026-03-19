@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useNavigate } from 'react-router-dom';
+import api from '../api';
 
 function Chat() {
   const [topic, setTopic] = useState('');
@@ -13,28 +16,28 @@ function Chat() {
   const [sessionId, setSessionId] = useState(null);
   const [historyList, setHistoryList] = useState([]);
 
+  const navigate = useNavigate();
+  const messagesEndRef = useRef(null);
+
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('ensina_logica_history');
-      if (saved) {
-        const parsedData = JSON.parse(saved);
-        // Validação de segurança extraída das iterações anteriores
-        if (Array.isArray(parsedData)) {
-          setHistoryList(parsedData);
-        }
-      }
-    } catch (e) {
-      console.error("Erro ao ler o histórico local", e);
-    }
+    fetchHistory();
   }, []);
 
-  const saveToHistory = (id, currentTopic, currentLevel) => {
-    setHistoryList((prev) => {
-      if (prev.some(item => item.id === id)) return prev;
-      const newList = [{ id, topic: currentTopic, level: currentLevel }, ...prev];
-      localStorage.setItem('ensina_logica_history', JSON.stringify(newList));
-      return newList;
-    });
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
+  const fetchHistory = async () => {
+    try {
+      const response = await api.get('/explain/history');
+      setHistoryList(response.data);
+    } catch (error) {
+      console.error("Erro ao carregar histórico", error);
+      if (error.response && error.response.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/login');
+      }
+    }
   };
 
   const handleSend = async () => {
@@ -58,13 +61,13 @@ function Chat() {
         session_id: sessionId
       };
 
-      const response = await axios.post('http://127.0.0.1:8000/explain', payload);
+      const response = await api.post('/explain/', payload);
       const textResponse = response.data.explanation;
       const returnedSessionId = response.data.session_id;
 
       if (!sessionId && returnedSessionId) {
         setSessionId(returnedSessionId);
-        saveToHistory(returnedSessionId, topic, level);
+        fetchHistory();
       }
 
       setMessages((prev) => [...prev, { role: 'assistant', content: textResponse }]);
@@ -87,7 +90,7 @@ function Chat() {
   const loadSession = async (id) => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`http://127.0.0.1:8000/explain/session/${id}`);
+      const response = await api.get(`/explain/session/${id}`);
       const data = response.data;
 
       setSessionId(data.session?.id || null);
@@ -103,6 +106,29 @@ function Chat() {
     }
   };
 
+  const handleDeleteSession = async (id, e) => {
+    e.stopPropagation();
+
+    const confirmar = window.confirm("Confirmar exclusão desta sessão?");
+    if (!confirmar) return;
+
+    try {
+      await api.delete(`/explain/session/${id}`);
+      if (sessionId === id) {
+        handleNewChat();
+      }
+      fetchHistory();
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao excluir a sessão.");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
   const isTopicValid = typeof topic === 'string' && topic.trim() !== '';
   const isInputDisabled = isLoading || !isTopicValid;
 
@@ -115,12 +141,12 @@ function Chat() {
         <div style={{ padding: '20px', borderBottom: '1px solid #3c3c3c' }}>
           <button
             onClick={handleNewChat}
-            style={{ width: '100%', padding: '10px', backgroundColor: '#4CAF50', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}
+            style={{ width: '100%', padding: '10px', backgroundColor: '#4CAF50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.5px' }}
           >
-            + Novo Chat
+            Novo Chat
           </button>
 
-          <h2 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#cccccc', textTransform: 'uppercase' }}>Configuração</h2>
+          <h2 style={{ fontSize: '11px', margin: '0 0 10px 0', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>Configuração</h2>
 
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '5px', color: '#aaa' }}>Tópico de Estudo</label>
@@ -128,7 +154,7 @@ function Chat() {
               type="text"
               value={topic || ''}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="Ex: Condicionais, Listas..."
+              placeholder="Ex: Condicionais..."
               disabled={sessionId !== null}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#333', color: '#fff', boxSizing: 'border-box', opacity: sessionId !== null ? 0.5 : 1 }}
             />
@@ -149,39 +175,73 @@ function Chat() {
           </div>
         </div>
 
-        {/* Quadro de Histórico Dinâmico */}
+        {/* Histórico */}
         <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
-          <h2 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#cccccc', textTransform: 'uppercase' }}>Histórico</h2>
+          <h2 style={{ fontSize: '11px', margin: '0 0 10px 0', color: '#888', textTransform: 'uppercase', letterSpacing: '1px' }}>Suas Sessões</h2>
 
           {historyList.length === 0 ? (
-            <p style={{ fontSize: '12px', color: '#777', fontStyle: 'italic', lineHeight: '1.5' }}>
-              Nenhuma sessão recente encontrada.
+            <p style={{ fontSize: '12px', color: '#555', fontStyle: 'italic', lineHeight: '1.5' }}>
+              Nenhum histórico encontrado.
             </p>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {historyList.map((item) => (
-                <li key={item.id} style={{ marginBottom: '8px' }}>
+                <li key={item.id} style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '5px', backgroundColor: sessionId === item.id ? '#333' : 'transparent', padding: '10px', borderRadius: '4px', border: '1px solid #3c3c3c' }}>
                   <button
                     onClick={() => loadSession(item.id)}
                     style={{
                       width: '100%',
                       textAlign: 'left',
-                      padding: '10px',
-                      backgroundColor: sessionId === item.id ? '#3c3c3c' : 'transparent',
+                      padding: '0',
+                      backgroundColor: 'transparent',
                       color: '#ddd',
-                      border: '1px solid #3c3c3c',
-                      borderRadius: '4px',
+                      border: 'none',
                       cursor: 'pointer',
                       fontSize: '13px'
                     }}
                   >
-                    <strong style={{ display: 'block', color: '#4CAF50', marginBottom: '4px' }}>{item.topic}</strong>
-                    <span style={{ fontSize: '11px', color: '#888', textTransform: 'capitalize' }}>Nível: {item.level}</span>
+                    <strong style={{ display: 'block', color: sessionId === item.id ? '#4CAF50' : '#ccc', marginBottom: '4px' }}>{item.topic}</strong>
+                    <span style={{ fontSize: '11px', color: '#777', textTransform: 'capitalize' }}>Nível: {item.level}</span>
                   </button>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '5px' }}>
+                    <button
+                      onClick={(e) => handleDeleteSession(item.id, e)}
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: 'transparent',
+                        color: '#ff4444',
+                        border: '1px solid #555',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        textTransform: 'uppercase',
+                        fontWeight: 'bold',
+                        letterSpacing: '0.5px'
+                      }}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
+        </div>
+
+        {/* Rodapé da Barra Lateral */}
+        <div style={{ padding: '20px', borderTop: '1px solid #3c3c3c', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+           <button
+             onClick={() => navigate('/dashboard')}
+             style={{ width: '100%', padding: '8px', backgroundColor: 'transparent', color: '#4CAF50', border: '1px solid #4CAF50', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}
+           >
+             Painel Administrativo
+           </button>
+           <button
+             onClick={handleLogout}
+             style={{ width: '100%', padding: '8px', backgroundColor: '#333', color: '#aaa', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}
+           >
+             Sair da Conta
+           </button>
         </div>
 
       </div>
@@ -189,16 +249,15 @@ function Chat() {
       {/* Área Principal do Chat */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
-        {/* AQUI ESTÁ A CORREÇÃO DE ARQUITETURA: key={sessionId || 'empty'} forçando a remontagem segura */}
         <div key={sessionId || 'empty'} style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
           {topic ? (
-             <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Tópico Atual: {topic} {sessionId && <span style={{fontSize: '14px', color: '#777'}}>(Sessão #{sessionId})</span>}</h1>
+             <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Tópico Atual: {topic}</h1>
           ) : (
              <h1 style={{ fontSize: '24px', marginBottom: '20px', color: '#777' }}>Defina um tópico ao lado para começar</h1>
           )}
 
           {messages.length === 0 ? (
-            <p style={{ color: '#aaaaaa' }}>Aguardando o envio da sua mensagem para iniciar a aula.</p>
+            <p style={{ color: '#aaaaaa' }}>Aguardando o envio da sua mensagem para iniciar a sessão.</p>
           ) : null}
 
           {messages.map((msg, index) => (
@@ -207,25 +266,50 @@ function Chat() {
                 display: 'inline-block',
                 padding: '12px 18px',
                 borderRadius: '8px',
-                backgroundColor: msg.role === 'user' ? '#4CAF50' : '#333333',
+                backgroundColor: msg.role === 'user' ? '#4CAF50' : '#2d2d2d',
                 maxWidth: '80%',
                 lineHeight: '1.5',
-                textAlign: 'left'
+                textAlign: 'left',
+                border: msg.role === 'user' ? 'none' : '1px solid #444'
               }}>
                 {msg.role === 'user' ? (
-                  <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                  <span style={{ whiteSpace: 'pre-wrap', color: '#fff' }}>{msg.content}</span>
                 ) : (
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      code({node, inline, className, children, ...props}) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            {...props}
+                            children={String(children).replace(/\n$/, '')}
+                            style={vscDarkPlus}
+                            language={match[1]}
+                            PreTag="div"
+                            customStyle={{ borderRadius: '5px', padding: '15px', marginTop: '10px', marginBottom: '10px', fontSize: '14px' }}
+                          />
+                        ) : (
+                          <code {...props} className={className} style={{ backgroundColor: '#1e1e1e', padding: '2px 4px', borderRadius: '4px', color: '#ffcc00' }}>
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 )}
               </div>
             </div>
           ))}
 
           {isLoading ? (
-            <div style={{ textAlign: 'left', color: '#aaaaaa', fontStyle: 'italic', marginTop: '10px' }}>
-              Processando histórico ou resposta...
+            <div style={{ textAlign: 'left', color: '#777', fontStyle: 'italic', marginTop: '10px', fontSize: '14px' }}>
+              Processando resposta...
             </div>
           ) : null}
+
+          <div ref={messagesEndRef} />
         </div>
 
         <div style={{ padding: '20px', backgroundColor: '#1e1e1e', borderTop: '1px solid #3c3c3c' }}>
@@ -235,20 +319,24 @@ function Chat() {
               value={input || ''}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Digite sua dúvida ou código..."
+              placeholder="Digite sua dúvida ou peça um exemplo de código..."
               disabled={isInputDisabled}
-              style={{ flex: 1, padding: '15px', borderRadius: '8px', border: '1px solid #555', backgroundColor: '#333', color: '#fff' }}
+              style={{ flex: 1, padding: '15px', borderRadius: '4px', border: '1px solid #555', backgroundColor: '#2d2d2d', color: '#fff', fontSize: '14px' }}
             />
             <button
               onClick={handleSend}
               disabled={isInputDisabled}
               style={{
-                padding: '0 20px',
-                backgroundColor: isInputDisabled ? '#555' : '#4CAF50',
+                padding: '0 25px',
+                backgroundColor: isInputDisabled ? '#444' : '#4CAF50',
                 color: '#fff',
                 border: 'none',
-                borderRadius: '8px',
-                cursor: isInputDisabled ? 'not-allowed' : 'pointer'
+                borderRadius: '4px',
+                cursor: isInputDisabled ? 'not-allowed' : 'pointer',
+                textTransform: 'uppercase',
+                fontWeight: 'bold',
+                letterSpacing: '0.5px',
+                fontSize: '12px'
               }}
             >
               Enviar
