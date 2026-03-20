@@ -12,28 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="Ensina Lógica API")
 
 origins = [
-    "http://localhost:5173", # Para testes locais futuros
-    "https://ensinalogica.netlify.app" # URL de produção na Vercel/Netlify
+    "http://localhost:5173",
+    "https://ensinalogica.netlify.app"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-app = FastAPI(
-    title=APP_NAME,
-    version=APP_VERSION,
-    description=APP_DESCRIPTION
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
