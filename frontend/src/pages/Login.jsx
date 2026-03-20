@@ -18,7 +18,7 @@ function Login() {
     try {
       if (isRegistering) {
         // Fluxo 1: Criação da Conta
-        await axios.post('http://127.0.0.1:8000/auth/register', {
+        await axios.post('https://ensina-logica-api.onrender.com/auth/register', {
           email: email,
           password: password
         });
@@ -29,7 +29,7 @@ function Login() {
       params.append('username', email);
       params.append('password', password);
 
-      const response = await axios.post('http://127.0.0.1:8000/auth/login', params, {
+      const response = await axios.post('https://ensina-logica-api.onrender.com/auth/login', params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
