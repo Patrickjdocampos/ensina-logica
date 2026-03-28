@@ -12,7 +12,6 @@ function Dashboard() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Cores para o gráfico de pizza
   const PIE_COLORS = ['#4CAF50', '#2196F3', '#FFC107'];
 
   useEffect(() => {
@@ -142,4 +141,29 @@ function Dashboard() {
             </thead>
             <tbody>
               {logs.map((log) => (
-                <tr key={log.id} style={{ borderBottom: '1px solid
+                <tr key={log.id} style={{ borderBottom: '1px solid #333' }}>
+                  <td style={{ padding: '12px', color: '#888' }}>#{log.id}</td>
+                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.topic}</td>
+                  <td style={{ padding: '12px', textTransform: 'capitalize', color: '#4CAF50' }}>{log.level}</td>
+                  <td style={{ padding: '12px', color: '#ccc', maxWidth: '400px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {log.explanation}
+                  </td>
+                </tr>
+              ))}
+              {logs.length === 0 && (
+                <tr>
+                  <td colSpan="4" style={{ padding: '12px', textAlign: 'center', color: '#777' }}>
+                    Nenhum registro encontrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+export default Dashboard;
