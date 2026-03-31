@@ -1,11 +1,4 @@
 
----
-
-# 4) README extra que você deveria corrigir no `frontend/README.md`
-
-Esse ajuste é pequeno, mas muito importante, porque hoje o subdiretório `frontend` ainda exibe o README padrão do Vite. :contentReference[oaicite:7]{index=7}
-
-```md
 # Frontend - Ensina Lógica
 
 Interface web do projeto **Ensina Lógica**, responsável pela experiência do usuário, navegação entre páginas e exibição das respostas pedagógicas geradas pela API.
