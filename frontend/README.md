@@ -1,16 +1,38 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+# 4) README extra que você deveria corrigir no `frontend/README.md`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Esse ajuste é pequeno, mas muito importante, porque hoje o subdiretório `frontend` ainda exibe o README padrão do Vite. :contentReference[oaicite:7]{index=7}
 
-## React Compiler
+```md
+# Frontend - Ensina Lógica
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Interface web do projeto **Ensina Lógica**, responsável pela experiência do usuário, navegação entre páginas e exibição das respostas pedagógicas geradas pela API.
 
-## Expanding the ESLint configuration
+## Tecnologias
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React
+- Vite
+- Axios
+- React Router DOM
+- React Markdown
+- React Syntax Highlighter
+- Recharts
+
+## Responsabilidades do frontend
+
+- autenticação de usuários
+- navegação da aplicação
+- envio de perguntas para o backend
+- renderização de respostas em markdown
+- exibição formatada de blocos de código
+- visualização de histórico e sessões
+
+## Scripts disponíveis
+
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
